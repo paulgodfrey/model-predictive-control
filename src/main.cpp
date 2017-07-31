@@ -84,13 +84,46 @@ int main() {
         auto j = json::parse(s);
         string event = j[0].get<string>();
         if (event == "telemetry") {
+
           // j[1] is the data JSON object
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
+
+          // vehical state
           double px = j[1]["x"];
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+
+          /* kinematic motion model equations
+           *
+           * xt + 1 = xt + vt * cos(psit) * dt
+           * yt +1 = yt + vt * sin(psit) * dt
+           * psit +1 = psit + vt/Lft * steert * dt
+           * vt + 1 = vt + at * dt
+           */
+
+          /* calculating cte
+           *
+           * ctet = f(xt) - yt (assuming line is first order polynomial f)
+           * ctet+1 = f(xt) - yt + (vt * sin(epsit) * dt)
+           * f(xt) - yt is current cross track error
+           * vt * sin(epsit) * dt is change in error caused by vehicles movement
+           */
+
+           /* calculating orientation error
+            *
+            * orientation error is
+            * epsit + 1 = epsit + vt/Lf * steert * dt
+            * epsit is desired orientation subtracted from current orientation
+            * epsit = psit - - psidest
+            * psidest is tangential angle of polynomial f evaluated at xt
+            * update calculation is
+            * epsit + 1 = psit - psidest + (vt/Lf * steert * dt)
+            * where
+            * psit - psidest is current orientation error
+            * vt/Lf * steert * dt is change in error caused by vehicles movement
+            */
 
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -98,6 +131,9 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
+
+
+          // vehicle actuators
           double steer_value;
           double throttle_value;
 
@@ -107,7 +143,7 @@ int main() {
           msgJson["steering_angle"] = steer_value;
           msgJson["throttle"] = throttle_value;
 
-          //Display the MPC predicted trajectory 
+          //Display the MPC predicted trajectory
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
 
