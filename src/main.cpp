@@ -125,6 +125,11 @@ int main() {
             * vt/Lf * steert * dt is change in error caused by vehicles movement
             */
 
+          /* cost function
+           *
+           * J = E(n)t=1 pow(ctet - cte_ref, 2) + pow(evt - ev_ref, 2) + ...
+           */
+
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
