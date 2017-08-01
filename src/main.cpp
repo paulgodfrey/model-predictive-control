@@ -95,48 +95,12 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
-          /* kinematic motion model equations
-           *
-           * xt + 1 = xt + vt * cos(psit) * dt
-           * yt +1 = yt + vt * sin(psit) * dt
-           * psit +1 = psit + vt/Lft * steert * dt
-           * vt + 1 = vt + at * dt
-           */
-
-          /* calculating cte
-           *
-           * ctet = f(xt) - yt (assuming line is first order polynomial f)
-           * ctet+1 = f(xt) - yt + (vt * sin(epsit) * dt)
-           * f(xt) - yt is current cross track error
-           * vt * sin(epsit) * dt is change in error caused by vehicles movement
-           */
-
-           /* calculating orientation error
-            *
-            * orientation error is
-            * epsit + 1 = epsit + vt/Lf * steert * dt
-            * epsit is desired orientation subtracted from current orientation
-            * epsit = psit - - psidest
-            * psidest is tangential angle of polynomial f evaluated at xt
-            * update calculation is
-            * epsit + 1 = psit - psidest + (vt/Lf * steert * dt)
-            * where
-            * psit - psidest is current orientation error
-            * vt/Lf * steert * dt is change in error caused by vehicles movement
-            */
-
-          /* cost function
-           *
-           * J = E(n)t=1 pow(ctet - cte_ref, 2) + pow(evt - ev_ref, 2) + ...
-           */
-
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
           * Both are in between [-1, 1].
           *
           */
-
 
           // vehicle actuators
           double steer_value;
