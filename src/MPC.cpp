@@ -51,21 +51,21 @@ class FG_eval {
 
     // cost based on the reference state.
     for (int t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t] - ref_cte, 2);
-      fg[0] += CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
+      fg[0] += 1000*CppAD::pow(vars[cte_start + t] - ref_cte, 2);
+      fg[0] += 1000*CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     // minimize the use of actuators.
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 3*CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += 3*CppAD::pow(vars[a_start + t], 2);
     }
 
     // minimize the value gap between sequential actuations.
     for (int t = 0; t < N - 2; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += 100*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += 5*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     // initialize model to current state
@@ -117,7 +117,7 @@ class FG_eval {
       fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
       fg[1 + cte_start + t] =
         cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
-      fg[1 + epsi_start + i] =
+      fg[1 + epsi_start + t] =
         epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
 
     }
@@ -154,7 +154,6 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   cout << "model variables\n";
@@ -197,8 +196,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // upper and lower limits of delta are set to -25 and 25
   // degrees (values in radians)
   for (int i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] = -0.436332;
-    vars_upperbound[i] = 0.436332;
+    vars_lowerbound[i] = -0.436332*Lf;
+    vars_upperbound[i] = 0.436332*Lf;
   }
 
   // acceleration/decceleration upper and lower limits

@@ -123,14 +123,10 @@ int main() {
           *
           */
 
-          // vehicle actuators
-          double steer_value = j[1]["steering_angle"];
-          double throttle_value = j[1]["throttle"];
-
           Eigen::VectorXd state(6);
           state << px, py, psi, v, cte, epsi;
 
-          auto vars = mpc.Solve(state, coeffs)
+          auto vars = mpc.Solve(state, coeffs);
 
           json msgJson;
           double Lf = 2.67;
@@ -187,7 +183,7 @@ int main() {
           //
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
-          this_thread::sleep_for(chrono::milliseconds(100));
+          this_thread::sleep_for(chrono::milliseconds(0));
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         }
       } else {
