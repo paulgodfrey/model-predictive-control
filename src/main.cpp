@@ -85,7 +85,7 @@ int main() {
         string event = j[0].get<string>();
         if (event == "telemetry") {
 
-          // j[1] is the data JSON object
+          // waypoints of ideal trajectory
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
 
@@ -95,15 +95,19 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
-          // transform location and heading data to map space
+          // transform waypoints so they are horizontal to car
           for(int i = 0; i < ptsx.size(); i++) {
+
+            // shift car reference angle to 90 degrees
             double shift_x = ptsx[i] - px;
             double shift_y = ptsy[i] - py;
 
-            ptsx[i] = (shift_x * cos(0 - psi) - shift_y * cos(0 - psi));
+            // rotate all points so that psi is 0
+            ptsx[i] = (shift_x * cos(0 - psi) - shift_y * sin(0 - psi));
             ptsy[i] = (shift_x * sin(0 - psi) + shift_y * cos(0 - psi));
           }
 
+          // convert vector<double> into vectorXd to pass into polyfit
           double* ptrx = &ptsx[0];
           Eigen::Map<Eigen::VectorXd> ptsx_transform(ptrx, 6);
 
@@ -112,8 +116,10 @@ int main() {
 
           auto coeffs = polyfit(ptsx_transform, ptsy_transform, 3);
 
+          // calculate cte and error psi
           double cte = polyeval(coeffs, 0);
 
+          // difference between car heading and target trajetory
           double epsi = -atan(coeffs[1]);
 
           /*
@@ -124,7 +130,9 @@ int main() {
           */
 
           Eigen::VectorXd state(6);
-          state << px, py, psi, v, cte, epsi;
+
+          // reference state has been transformed to 0 for x, y, psi
+          state << 0, 0, 0, v, cte, epsi;
 
           auto vars = mpc.Solve(state, coeffs);
 
@@ -133,7 +141,10 @@ int main() {
 
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = vars[0]/(deg2rad(25)*Lf);
+
+          cout << "set actuator steer to " << vars[0]/(deg2rad(25)*Lf) << " and throttle to " << vars[1] << endl;
+
+          msgJson["steering_angle"] = (vars[0]/(deg2rad(25)*Lf)) * -1;
           msgJson["throttle"] = vars[1];
 
           //Display the MPC predicted trajectory
@@ -157,8 +168,8 @@ int main() {
           vector<double> next_x_vals;
           vector<double> next_y_vals;
 
-          double poly_inc = 2.5;
-          int num_points = 25;
+          double poly_inc = 2.5; // incremental x
+          int num_points = 25; // number of points to display
 
           for(int i = 1; i < num_points; i++) {
             next_x_vals.push_back(poly_inc*i);

@@ -5,9 +5,11 @@
 
 using CppAD::AD;
 
-// TODO: Set the timestep length and duration
+// timestep length
 size_t N = 10;
+// timestep duration
 double dt = .1;
+// N/dt=1 means it will solve for 1 sec into future
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -23,7 +25,7 @@ const double Lf = 2.67;
 
 double ref_cte = 0;
 double ref_epsi = 0;
-double ref_v = 5;
+double ref_v = 15;
 
 size_t x_start = 0;
 size_t y_start = x_start + N;
@@ -51,15 +53,16 @@ class FG_eval {
 
     // cost based on the reference state.
     for (int t = 0; t < N; t++) {
+      // increase coefficients to magnify cost of control variables
       fg[0] += 1000*CppAD::pow(vars[cte_start + t] - ref_cte, 2);
-      fg[0] += 1000*CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
+      fg[0] += 2000*CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
     // minimize the use of actuators.
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += 3*CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 3*CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 5*CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += 5*CppAD::pow(vars[a_start + t], 2);
     }
 
     // minimize the value gap between sequential actuations.
@@ -118,7 +121,7 @@ class FG_eval {
       fg[1 + cte_start + t] =
         cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
       fg[1 + epsi_start + t] =
-        epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+        epsi1 - ((psi0 - psides0) - v0 * delta0 / Lf * dt);
 
     }
 
@@ -173,7 +176,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   cout << "size constraints\n";
 
-  size_t n_vars = N * 6 + (N-1) * 2;
+  size_t n_vars = N * 6 + (N - 1) * 2;
   size_t n_constraints = N * 6;
 
   // Initial value of the independent variables.
@@ -202,8 +205,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // acceleration/decceleration upper and lower limits
   for (int i = a_start; i < n_vars; i++) {
-    vars_lowerbound[i] = -1.0;
-    vars_upperbound[i] = 1.0;
+    vars_lowerbound[i] = -0.5;
+    vars_upperbound[i] = 0.5;
   }
 
   // Lower and upper limits for the constraints
