@@ -1,6 +1,38 @@
-# CarND-Controls-MPC
-Self-Driving Car Engineer Nanodegree Program
+# Model Predictive Control
 
+Model predictive control reframes the problem of following a target trajectory as an optimization problem. The solution to the optimization problem is then the optimal trajectory. This can be done by simulating different actuator controls (steering, speed), predicting the resulting trajectory, and selecting the trajectory with the minimum cost. Once we find the optimal trajectory commands are sent to the actuator controls.
+
+To find the optimal trajectory I applied the kinematic motion model to predict the trajectory of the vehicle. This model uses the vehicles current state (x, y, ψ​, velocity) to calculate its future position at timestep t + 1, over N timesteps (where N is decided based on computational constraints). While the kinematic motion model ignores forces like gravity and tire dynamics (slip angles / ratios) its simplicity makes it computationally efficient for embedded systems.
+
+### How to calculate vehicles position at timestep t + 1 using its current state:
+```
+x​t + 1 ​​= xt ​​+ vt ​​∗ cos(ψt) ∗ dt // x coordinate
+y​t + 1 ​​= yt ​​+ vt ​​∗ sin(ψ​t) ∗ dt // y coordinate
+ψ​t + 1 ​​= ψ​t ​​+ ​L​f/​vt ​​∗ δt ​​∗ dt // heading, δ is steering angle
+v​t + 1 ​​= v​t ​​+ a​t ∗ dt // velocity
+```
+
+Note: When calculating ψ​t + 1 we use an additional variable Lf to represent the difference between the front of the vehicle and its center of gravity. This variable is important when computing ψ​t + 1 because the larger the vehicle, the slower its turn rate.
+
+After we've computed where the vehicle will be in the future given it's current state we can then compute the crosstrack (cte) and orientation (eψ​) errors. Computing these errors will allow us to then update the actuators (steering and throttle) to minimize the cost function and thus move closer to the target trajectory.
+
+### How to calculate the orientation error (eψ​) at timestep t + 1:
+```
+eψ​t = ψ​t - - ψ​dest // current eψ is desired orientation subtracted from current orientation
+vt/Lf * steert * dt // change in error caused by vehicles movement
+eψ​t + 1 = eψ​t + vt/Lf * steert * dt
+```
+
+### How to calculate the crosstrack error at timestep t + 1:
+```
+ctet = f(xt) - yt // current cte
+vt * sin(epsit) * dt // change in error caused by vehicles movement
+ctet + 1 = f(xt) - yt + (vt * sin(eψt) * dt)
+```
+
+In our model we also want to introduce constraints (upper and lower bounds) to the steering angle (-25 to 25 degrees) and the throttle (-1 to 1, full brake to full acceleration). The speed of the vehicle will be used to calculate cost relative to an optimal reference velocity (ref_v) such as a speed limit.
+
+Finding the optimal trajectory relies on simulating different actuator inputs and crosstrack (cte) and heading (eψ​) errors we then need to update the actuators, steering (δ) and throttle (a), to minimize the cost.
 ---
 
 ## Dependencies
@@ -19,7 +51,7 @@ Self-Driving Car Engineer Nanodegree Program
   * Run either `install-mac.sh` or `install-ubuntu.sh`.
   * If you install from source, checkout to commit `e94b6e1`, i.e.
     ```
-    git clone https://github.com/uWebSockets/uWebSockets 
+    git clone https://github.com/uWebSockets/uWebSockets
     cd uWebSockets
     git checkout e94b6e1
     ```
@@ -42,7 +74,7 @@ Self-Driving Car Engineer Nanodegree Program
        per this [forum post](https://discussions.udacity.com/t/incorrect-checksum-for-freed-object/313433/19).
   * Linux
     * You will need a version of Ipopt 3.12.1 or higher. The version available through `apt-get` is 3.11.x. If you can get that version to work great but if not there's a script `install_ipopt.sh` that will install Ipopt. You just need to download the source from the Ipopt [releases page](https://www.coin-or.org/download/source/Ipopt/) or the [Github releases](https://github.com/coin-or/Ipopt/releases) page.
-    * Then call `install_ipopt.sh` with the source directory as the first argument, ex: `sudo bash install_ipopt.sh Ipopt-3.12.1`. 
+    * Then call `install_ipopt.sh` with the source directory as the first argument, ex: `sudo bash install_ipopt.sh Ipopt-3.12.1`.
   * Windows: TODO. If you can use the Linux subsystem and follow the Linux instructions.
 * [CppAD](https://www.coin-or.org/CppAD/)
   * Mac: `brew install cppad`
