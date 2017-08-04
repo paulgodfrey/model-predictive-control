@@ -57,7 +57,9 @@ for (int i = delta_start; i < a_start; i++) {
 }
 ```
 
-After finding the optimal trajectory, steering and throttle adjustments are sent to the actuator. While the model has calculated a series of controls over the time horizon (N*dt) everything outside of the first timestep is thrown out (note: in MPC.cpp I use the actuator controls at the second timestep - this is because i'm simulating a 100ms delay (N=10 and dt=0.1) for processing on an embedded system).
+I chose to calculate the simulated trajectories over a time horizon of one second (N=10 and dt=0.1). Because the number of timesteps (N) directly correlates to computational cost finding the lowest possible number while still providing good results is key.
+
+After finding the optimal trajectory, steering and throttle adjustments are sent to the actuator. While the model has calculated a series of controls over the time horizon (N*dt) everything outside of the first timestep is thrown out (note: in MPC.cpp I use the actuator controls at the second timestep - this is because i'm simulating a 100ms delay and N*dt = 1 so solution at s+1 is for 100ms in future).
 
 Instead of using the old predicted trajectory, you take the new state from vehicle sensors (x, y, psi, v) and calculate a new optimal trajectory (i.e. this whole process runs in a continuous loop). This approach is also called "receding horizon control" because you're constantly calculating inputs over a future horizon.
 
