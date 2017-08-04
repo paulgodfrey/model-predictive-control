@@ -1,10 +1,12 @@
 # Model Predictive Control
 
-Model predictive control reframes the problem of following a target trajectory as an optimization problem. The solution to the optimization problem is then the optimal trajectory. This can be done by simulating different actuator controls (steering, speed), predicting the resulting trajectory, and selecting the trajectory with the minimum cost. Once we find the optimal trajectory commands are sent to the actuator controls.
+Model predictive control reframes the problem of following a target trajectory as an optimization problem. The solution then becomes to find the optimal trajectory for the vehicle.
 
-To find the optimal trajectory I applied the kinematic motion model to predict the trajectory of the vehicle. This model uses the vehicles current state (x, y, ψ​, velocity) to calculate its future position at timestep t + 1, over N timesteps (where N is decided based on computational constraints). While the kinematic motion model ignores forces like gravity and tire dynamics (slip angles / ratios) its simplicity makes it computationally efficient for embedded systems.
+This can be accomplished by taking the vehicles current state (location, heading, and velocity) and then simulating the trajectory of the vehicle given adjustments to the controls (steering, accelerating, braking).
 
-### How to calculate vehicles position at timestep t + 1 using its current state:
+For the simulation step I used the kinematic motion model to calculate the vehicles trajectory:
+
+### Using the kinematic motion model to predict vehicles position at timestep t + 1 using its current state
 ```
 x​t + 1 ​​= xt ​​+ vt ​​∗ cos(ψt) ∗ dt // x coordinate
 y​t + 1 ​​= yt ​​+ vt ​​∗ sin(ψ​t) ∗ dt // y coordinate
@@ -12,9 +14,9 @@ y​t + 1 ​​= yt ​​+ vt ​​∗ sin(ψ​t) ∗ dt // y coordinate
 v​t + 1 ​​= v​t ​​+ a​t ∗ dt // velocity
 ```
 
-Note: When calculating ψ​t + 1 we use an additional variable Lf to represent the difference between the front of the vehicle and its center of gravity. This variable is important when computing ψ​t + 1 because the larger the vehicle, the slower its turn rate.
+Note: When calculating ψ​t + 1 we use an additional variable Lf to represent the difference between the front of the vehicle and its center of gravity (the larger the vehicle, the slower its turn rate).
 
-After we've computed where the vehicle will be in the future given it's current state we can then compute the crosstrack (cte) and orientation (eψ​) errors. Computing these errors will allow us to then update the actuators (steering and throttle) to minimize the cost function and thus move closer to the target trajectory.
+The crosstrack (cte) and orientation (eψ​) errors can then be calculated for each simulated trajectory in order to find the path closest to the target trajectory.
 
 ### How to calculate the orientation error (eψ​) at timestep t + 1:
 ```
@@ -30,10 +32,8 @@ vt * sin(epsit) * dt // change in error caused by vehicles movement
 ctet + 1 = f(xt) - yt + (vt * sin(eψt) * dt)
 ```
 
-In our model we also want to introduce constraints (upper and lower bounds) to the steering angle (-25 to 25 degrees) and the throttle (-1 to 1, full brake to full acceleration). The speed of the vehicle will be used to calculate cost relative to an optimal reference velocity (ref_v) such as a speed limit.
+Finding the optimal trajectory allows us to then update the actuators (steering and throttle) to minimize the cost function and thus move closer to the target trajectory.
 
-Finding the optimal trajectory relies on simulating different actuator inputs and crosstrack (cte) and heading (eψ​) errors we then need to update the actuators, steering (δ) and throttle (a), to minimize the cost.
----
 
 ## Dependencies
 
