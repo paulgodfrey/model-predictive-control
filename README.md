@@ -1,38 +1,79 @@
 # Model Predictive Control
 
-Model predictive control reframes the problem of following a target trajectory as an optimization problem. The solution then becomes to find the optimal trajectory for the vehicle.
+Model predictive control reframes the task of following a target trajectory as an optimization problem. The solution to that problem is to find the optimal trajectory for the vehicle.
 
-This can be accomplished by taking the vehicles current state (location, heading, and velocity) and then simulating the trajectory of the vehicle given adjustments to the controls (steering, accelerating, braking).
+The optimal trajectory can be found by taking the vehicles current state and then simulating different control inputs (steering, accelerating, braking) to see how they impact the vehicles trajectory.
 
-For the simulation step I used the kinematic motion model to calculate the vehicles trajectory:
+In this controller I've used kinematic motion model to predict the vehicles trajectory under different control inputs. Using this model you can be predict the vehicles trajectory given it's previous state:
 
-### Using the kinematic motion model to predict vehicles position at timestep t + 1 using its current state
+### Predicting a vehicles trajectory at timestep t + 1
 ```
-x​t + 1 ​​= xt ​​+ vt ​​∗ cos(ψt) ∗ dt // x coordinate
-y​t + 1 ​​= yt ​​+ vt ​​∗ sin(ψ​t) ∗ dt // y coordinate
-ψ​t + 1 ​​= ψ​t ​​+ ​L​f/​vt ​​∗ δt ​​∗ dt // heading, δ is steering angle
+x​t + 1 ​​= xt ​​+ vt ​​∗ cos(psit) ∗ dt // x coordinate
+y​t + 1 ​​= yt ​​+ vt ​​∗ sin(psi​t) ∗ dt // y coordinate
+psit + 1 ​​= psit ​​+ ​L​f/​vt ​​∗ δt ​​∗ dt // heading, δ is steering angle
 v​t + 1 ​​= v​t ​​+ a​t ∗ dt // velocity
 ```
 
-Note: When calculating ψ​t + 1 we use an additional variable Lf to represent the difference between the front of the vehicle and its center of gravity (the larger the vehicle, the slower its turn rate).
+Note: When calculating psi​t + 1 we use an additional variable Lf to represent the difference between the front of the vehicle and its center of gravity (the larger the vehicle, the slower its turn rate).
 
-The crosstrack (cte) and orientation (eψ​) errors can then be calculated for each simulated trajectory in order to find the path closest to the target trajectory.
+Once you know the simulated trajectory for a given set of control inputs you can compute the crosstrack (cte) and orientation (epsi) errors. The path with the minimum cost will be closest to the target trajectory.
 
-### How to calculate the orientation error (eψ​) at timestep t + 1:
+### Calculate the orientation error (epsi​) at timestep t + 1:
 ```
-eψ​t = ψ​t - - ψ​dest // current eψ is desired orientation subtracted from current orientation
+epsit = psi​t - - ψ​dest // current eψ is desired orientation subtracted from current orientation
 vt/Lf * steert * dt // change in error caused by vehicles movement
-eψ​t + 1 = eψ​t + vt/Lf * steert * dt
+epsi​t + 1 = epsit + vt/Lf * steert * dt
 ```
 
-### How to calculate the crosstrack error at timestep t + 1:
+### Calculate the crosstrack error at timestep t + 1:
 ```
 ctet = f(xt) - yt // current cte
 vt * sin(epsit) * dt // change in error caused by vehicles movement
-ctet + 1 = f(xt) - yt + (vt * sin(eψt) * dt)
+ctet + 1 = f(xt) - yt + (vt * sin(epsit) * dt)
 ```
 
-Finding the optimal trajectory allows us to then update the actuators (steering and throttle) to minimize the cost function and thus move closer to the target trajectory.
+When calculating the cost for steering and speed across a trajectory it's important to penalize jerky steering or rapid changes in velocity (think of every terrible yellow taxi ride you've ever had). This is accomplished by tuning the coefficients when calculating cost for those inputs (see MPC.cpp lines 50-75).
+
+```
+// cost based on the reference state.
+for (int t = 0; t < N; t++) {
+  // increase coefficients to magnify cost of control variables
+  fg[0] += 2000*CppAD::pow(vars[cte_start + t] - ref_cte, 2);
+  fg[0] += 2000*CppAD::pow(vars[epsi_start + t] - ref_epsi, 2);
+  fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
+}
+```
+
+### Adding constraints to simulated input
+
+As part of the model for simulating trajectory it's also important to introduce constraints on you're input controls both for computational efficiency and to emulate real world inputs as closely as possible. As an example when you're driving a vehicle it's never going to be turn on a dime at a 90 degree angle — for this reason I've constrained the steering wheel angle in the simulations to -25 <-> 25 degrees.   
+
+```
+// upper and lower limits of delta are set to -25 and 25
+// degrees (values in radians)
+for (int i = delta_start; i < a_start; i++) {
+  vars_lowerbound[i] = -0.436332*Lf;
+  vars_upperbound[i] = 0.436332*Lf;
+}
+```
+
+After finding the optimal trajectory, updated steering and throttle adjustments are sent to the actuator. While the model has calculated a series of controls over the time horizon N*dt everything outside of the first timestep is thrown out. Instead of using the old predicted trajectory you take the new state from vehicle sensors (x, y, psi, v) and calculate a new optimal trajectory (i.e. this whole process runs in a continuous loop). This approach is also called "receding horizon control" because you're constantly calculating inputs over a future horizon.
+
+Note: While the track simulator (https://github.com/udacity/self-driving-car-sim/releases) returns waypoints using the maps coordinate system it's important to transform the target trajectory so that it's horizontal to the car:
+
+```
+// transform waypoints so they are horizontal to car
+for(int i = 0; i < ptsx.size(); i++) {
+
+  // shift car reference angle to 90 degrees
+  double shift_x = ptsx[i] - px;
+  double shift_y = ptsy[i] - py;
+
+  // rotate all points so that psi is 0
+  ptsx[i] = (shift_x * cos(0 - psi) - shift_y * sin(0 - psi));
+  ptsy[i] = (shift_x * sin(0 - psi) + shift_y * cos(0 - psi));
+}
+```
 
 
 ## Dependencies
@@ -87,72 +128,7 @@ Finding the optimal trajectory allows us to then update the actuators (steering 
 
 ## Basic Build Instructions
 
-
 1. Clone this repo.
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./mpc`.
-
-## Tips
-
-1. It's recommended to test the MPC on basic examples to see if your implementation behaves as desired. One possible example
-is the vehicle starting offset of a straight line (reference). If the MPC implementation is correct, after some number of timesteps
-(not too many) it should find and track the reference line.
-2. The `lake_track_waypoints.csv` file has the waypoints of the lake track. You could use this to fit polynomials and points and see of how well your model tracks curve. NOTE: This file might be not completely in sync with the simulator so your solution should NOT depend on it.
-3. For visualization this C++ [matplotlib wrapper](https://github.com/lava/matplotlib-cpp) could be helpful.
-
-## Editor Settings
-
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/b1ff3be0-c904-438e-aad3-2b5379f0e0c3/concepts/1a2255a0-e23c-44cf-8d41-39b8a3c8264a)
-for instructions and the project rubric.
-
-## Hints!
-
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
