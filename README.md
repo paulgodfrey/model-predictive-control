@@ -46,7 +46,7 @@ for (int t = 0; t < N; t++) {
 
 ### Adding constraints to simulated input
 
-As part of the model for simulating trajectory it's also important to introduce constraints on you're input controls both for computational efficiency and to emulate real world inputs as closely as possible. As an example when you're driving a vehicle it's never going to be turn on a dime at a 90 degree angle — for this reason I've constrained the steering wheel angle in the simulations to -25 <-> 25 degrees.   
+As part of the model for simulating trajectory it's also important to introduce constraints on your input controls both for computational efficiency and to emulate real world inputs as closely as possible. As an example when you're driving a vehicle it's never going to be turn on a dime at a 90 degree angle — for this reason I've constrained the steering wheel angle in the simulations to -25 <-> 25 degrees.   
 
 ```
 // upper and lower limits of delta are set to -25 and 25
@@ -57,7 +57,7 @@ for (int i = delta_start; i < a_start; i++) {
 }
 ```
 
-After finding the optimal trajectory, updated steering and throttle adjustments are sent to the actuator. While the model has calculated a series of controls over the time horizon N*dt everything outside of the first timestep is thrown out. Instead of using the old predicted trajectory you take the new state from vehicle sensors (x, y, psi, v) and calculate a new optimal trajectory (i.e. this whole process runs in a continuous loop). This approach is also called "receding horizon control" because you're constantly calculating inputs over a future horizon.
+After finding the optimal trajectory, updated steering and throttle adjustments are sent to the actuator. While the model has calculated a series of controls over the time horizon (N*dt) everything outside of the first timestep is thrown out. Instead of using the old predicted trajectory you take the new state from vehicle sensors (x, y, psi, v) and calculate a new optimal trajectory (i.e. this whole process runs in a continuous loop). This approach is also called "receding horizon control" because you're constantly calculating inputs over a future horizon.
 
 Note: While the track simulator (https://github.com/udacity/self-driving-car-sim/releases) returns waypoints using the maps coordinate system it's important to transform the target trajectory so that it's horizontal to the car:
 
